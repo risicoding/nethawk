@@ -95,13 +95,13 @@ func Scan() ([]protocol.ServerWithLatency, error) {
 	return discovered, nil
 }
 
-var serverCache = cache.New(Scan)
+var c *cache.Cache[[]protocol.ServerWithLatency]
 var once sync.Once
 
 func ScanCached() ([]protocol.ServerWithLatency, error) {
 	once.Do(func() {
-		serverCache.Refresh()
+		c = cache.New(Scan)
 	})
 
-	return serverCache.Get()
+	return c.Get()
 }
