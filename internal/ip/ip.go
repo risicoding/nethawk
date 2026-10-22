@@ -1,12 +1,15 @@
 package ip
 
 import (
+	"fmt"
 	"net"
 	"strings"
+
+	"github.com/wlynxg/anet"
 )
 
 func GetInterfaces() ([]net.Interface, error) {
-	infs, err := net.Interfaces()
+	infs, err := anet.Interfaces()
 	if err != nil {
 		return nil, err
 	}
@@ -48,9 +51,9 @@ type InterfaceWithIPs struct {
 }
 
 func GetInterfacesWithIps() ([]InterfaceWithIPs, error) {
-	infs, err := net.Interfaces()
+	infs, err := anet.Interfaces()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error with anet interfaces %w", err)
 	}
 
 	var interfaces []InterfaceWithIPs

@@ -10,6 +10,7 @@ import (
 
 	"github.com/grandcat/zeroconf"
 	"github.com/risicoding/nethawk/internal/logger"
+	"github.com/wlynxg/anet"
 )
 
 const PORT = 5354
@@ -22,7 +23,7 @@ type MDNSInstance struct {
 }
 
 func Transmit(ctx context.Context, deviceName string) error {
-	infs, err := net.Interfaces()
+	infs, err := anet.Interfaces()
 	if err != nil {
 		return err
 	}

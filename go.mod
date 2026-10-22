@@ -27,6 +27,7 @@ require (
 	github.com/spf13/cobra v1.10.2 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/ullaakut/nmap v2.0.0+incompatible // indirect
+	github.com/wlynxg/anet v0.0.5 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	golang.org/x/crypto v0.54.0 // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
