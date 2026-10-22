@@ -1,12 +1,26 @@
 package protocol
 
 type Server struct {
-	Name        string   `json:"name"`
-	Ips         []string `json:"ips"`
-	Status      string   `json:"status"`
-	DeviceName  string   `json:"devicename"`
-	DeviceUname string   `json:"deviceuname"`
-	DeviceAlias string   `json:"devicealias"`
+	Name   string       `json:"name"`
+	Status string       `json:"status"`
+	Config DeviceConfig `json:"config"`
+	Ips    []string     `json:"ips"`
+}
+
+type ServerWithLatency struct {
+	Server
+	Latency int `json:"latency"`
+}
+
+type Device struct {
+	DeviceConfig
+	Ips []string `json:"ips"`
+}
+
+type DeviceConfig struct {
+	Name  string `json:"name"`
+	Uname string `json:"uname"`
+	Alias string `json:"alias"`
 }
 
 type Interface struct {
@@ -17,5 +31,5 @@ type Interface struct {
 
 type ScanResult struct {
 	Interface Interface `json:"interface"`
-	Servers   []Server  `json"servers"`
+	Servers   []Server  `json:"servers"`
 }

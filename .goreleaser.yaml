@@ -1,0 +1,59 @@
+version: 2
+
+project_name: nethawk
+
+builds:
+  - id: linux-amd64
+    main: .
+    binary: nethawk
+    goos:
+      - linux
+    goarch:
+      - amd64
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+
+  - id: linux-arm64
+    main: .
+    binary: nethawk
+    goos:
+      - linux
+    goarch:
+      - arm64
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+
+  - id: android-arm64
+    main: .
+    binary: nethawk
+    goos:
+      - android
+    goarch:
+      - arm64
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+
+archives:
+  - formats:
+      - tar.gz
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    wrap_in_directory: false
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  disable: true

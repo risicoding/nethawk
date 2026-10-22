@@ -54,7 +54,7 @@ func (c *Cache[T]) run() {
 		case <-timer.C:
 
 			c.Refresh()
-			timer = time.NewTimer(10 * time.Second)
+			timer = time.NewTimer(3 * time.Second)
 
 		}
 	}

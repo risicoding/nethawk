@@ -1,120 +1,88 @@
 package ip
 
 import (
-	"errors"
-	"fmt"
 	"net"
-	"net/netip"
-)
-
-type Interface struct {
-	Name string
-	Ipv4 string
-	Mask string
-}
-
-var (
-	ErrorNoIpv4Address = errors.New("interface has no ipv4 addresses")
-	ErrorVirtInterface = errors.New("interface is not a physical interface")
+	"strings"
 )
 
 func GetInterfaces() ([]net.Interface, error) {
-	interfaces, err := net.Interfaces()
+	infs, err := net.Interfaces()
 	if err != nil {
-		return nil, fmt.Errorf("failed to find interfaces: %w", err)
+		return nil, err
+	}
+
+	var interfaces []net.Interface
+	for _, inf := range infs {
+		if inf.Name == "docker0" || inf.Name == "lo" || strings.Contains(inf.Name, "ccmni") {
+			continue
+		}
+
+		addrs, err := inf.Addrs()
+		if err != nil {
+			continue
+		}
+
+		exists := false
+		for _, addr := range addrs {
+
+			if ipNet, ok := addr.(*net.IPNet); ok {
+
+				if ipv4 := ipNet.IP.To4(); ipv4 != nil {
+					exists = true
+
+				}
+			}
+
+		}
+		if exists {
+			interfaces = append(interfaces, inf)
+		}
 	}
 
 	return interfaces, nil
 }
 
-func GetInterfaceData(name string) (Interface, error) {
-	if name == "lo" || name == "docker0" {
-		return Interface{}, ErrorVirtInterface
-	}
-
-	inf, err := net.InterfaceByName(name)
-	if err != nil {
-		return Interface{}, err
-	}
-
-	addrs, err := inf.Addrs()
-	if err != nil {
-		return Interface{}, err
-	}
-
-	for _, addr := range addrs {
-		if ipNet, ok := addr.(*net.IPNet); ok {
-			if ipv4 := ipNet.IP.To4(); ipv4 != nil {
-				mask := net.IP(ipNet.Mask)
-
-				return Interface{
-					Name: name,
-					Ipv4: ipv4.String(),
-					Mask: mask.String(),
-				}, nil
-			}
-		}
-	}
-
-	return Interface{}, ErrorNoIpv4Address
+type InterfaceWithIPs struct {
+	net.Interface
+	IPs []net.IP
 }
 
-func GetAllInterfacesWithData() ([]Interface, error) {
-	infs, err := GetInterfaces()
-	if err != nil {
-		return nil, fmt.Errorf("get interfaces: %w", err)
-	}
-
-	var infsData []Interface
-
-	for _, inf := range infs {
-		data, err := GetInterfaceData(inf.Name)
-		if err != nil {
-			if errors.Is(err, ErrorNoIpv4Address) ||
-				errors.Is(err, ErrorVirtInterface) {
-				continue
-			}
-
-			return nil, fmt.Errorf(
-				"get interface data for %s: %w",
-				inf.Name, err,
-			)
-		}
-
-		infsData = append(infsData, data)
-	}
-
-	return infsData, nil
-}
-
-func GetIPRange(ip, mask string) ([]string, error) {
-	parsedIp := net.ParseIP(ip)
-	parsedMask := net.ParseIP(mask)
-
-	if parsedIp == nil || parsedMask == nil {
-		return nil, fmt.Errorf("invalid ip or subnet mask")
-	}
-
-	maskBytes := net.IPMask(parsedMask.To4())
-	ones, bits := maskBytes.Size()
-	if bits != 32 {
-		return nil, fmt.Errorf("invalid IPv4 subnet mask: %q", mask)
-	}
-
-	addr, err := netip.ParseAddr(ip)
+func GetInterfacesWithIps() ([]InterfaceWithIPs, error) {
+	infs, err := net.Interfaces()
 	if err != nil {
 		return nil, err
 	}
 
-	prefix := netip.PrefixFrom(addr, ones)
-	currentIp := prefix.Masked().Addr()
+	var interfaces []InterfaceWithIPs
+	for _, inf := range infs {
+		if inf.Name == "docker0" || inf.Name == "lo" || strings.Contains(inf.Name, "ccmni") {
+			continue
+		}
 
-	var ipRange []string
+		addrs, err := inf.Addrs()
+		if err != nil {
+			continue
+		}
 
-	for prefix.Contains(currentIp) {
-		ipRange = append(ipRange, currentIp.String())
-		currentIp = currentIp.Next()
+		exists := false
+		var ips []net.IP
+		for _, addr := range addrs {
+
+			if ipNet, ok := addr.(*net.IPNet); ok {
+
+				if ipv4 := ipNet.IP.To4(); ipv4 != nil {
+					exists = true
+
+					ips = append(ips, ipv4)
+				}
+			}
+
+		}
+
+		if exists {
+			interfaces = append(interfaces, InterfaceWithIPs{Interface: inf, IPs: ips})
+		}
 	}
 
-	return ipRange, nil
+	return interfaces, nil
 }
