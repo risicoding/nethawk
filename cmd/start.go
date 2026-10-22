@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"strings"
@@ -21,36 +22,78 @@ import (
 
 var (
 	deviceName  string
-	deviceUname string
 	deviceAlias string
 )
 
-// startCmd represents the start command
 var startCmd = &cobra.Command{
 	Use:   "start",
-	Short: "Start the nethawk server",
-	Run: func(cmd *cobra.Command, args []string) {
-		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	Short: "Start a Nethawk server on this device",
+	Long: `Start the Nethawk service and advertise this device on the local network.
+
+The server publishes its presence using multicast DNS (mDNS) and starts
+the Nethawk discovery endpoint so other devices can identify this instance
+and retrieve its status and device configuration.
+
+The device name is required and identifies this instance in discovery
+results. A machine-friendly identifier (uname) is derived from the device
+name by replacing spaces with underscores.
+
+An optional alias provides a human-friendly label for the device. For
+example, a device named "fedora-pc" could use the alias "My Desktop".
+
+The process runs in the foreground until it receives an interrupt or
+termination signal, such as Ctrl+C or SIGTERM. On shutdown, the command
+cancels its service context.
+
+For discovery to work, the devices should share a network that permits
+mDNS multicast traffic, and the server's listening endpoint must be
+reachable through the local network.`,
+	Example: `  # Start with a device name
+  nethawk start --name fedora-pc
+
+  # Set a friendly alias
+  nethawk start --name fedora-pc --alias "My Desktop"
+
+  # Use short flag names
+  nethawk start -n laptop -a "Work Laptop"
+
+  # Stop the foreground server
+  # Press Ctrl+C`,
+	Args:         cobra.NoArgs,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx, cancel := signal.NotifyContext(
+			context.Background(),
+			os.Interrupt,
+			syscall.SIGTERM,
+		)
 		defer cancel()
 
-		logger.Info("after mdns")
-		deviceUname := strings.Join(strings.Split(deviceName, " "), "_")
+		name := strings.TrimSpace(deviceName)
+		if name == "" {
+			return fmt.Errorf("device name cannot be empty")
+		}
+
+		uname := strings.Join(strings.Fields(name), "_")
 		device := protocol.DeviceConfig{
-			Name:  deviceName,
-			Uname: deviceUname,
-			Alias: deviceAlias,
+			Name:  name,
+			Uname: uname,
+			Alias: strings.TrimSpace(deviceAlias),
 		}
 
 		infs, err := ip.GetInterfacesWithIps()
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("get network interfaces: %w", err)
 		}
 
-		go mdns.Transmit(ctx, deviceName)
+		logger.Info("Starting Nethawk")
+
+		go mdns.Transmit(ctx, name)
 		go echo.Start(ctx, device, infs, scanner.ScanCached)
 
 		<-ctx.Done()
-		logger.Info("Stopping nethawk")
+		logger.Info("Stopping Nethawk")
+		return nil
 	},
 }
 
@@ -60,7 +103,7 @@ func init() {
 		"name",
 		"n",
 		"",
-		"Device name",
+		"Required device name advertised on the local network",
 	)
 
 	startCmd.Flags().StringVarP(
@@ -68,19 +111,12 @@ func init() {
 		"alias",
 		"a",
 		"",
-		"Device alias",
+		"Optional human-friendly alias for this device",
 	)
 
-	_ = startCmd.MarkFlagRequired("name")
+	if err := startCmd.MarkFlagRequired("name"); err != nil {
+		panic(err)
+	}
+
 	rootCmd.AddCommand(startCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// startCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// startCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

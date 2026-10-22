@@ -4,65 +4,94 @@ Copyright © 2026 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
-
-	jsonlib "encoding/json"
 
 	"github.com/risicoding/nethawk/internal/scanner"
 	"github.com/spf13/cobra"
 )
 
-var json = false
+var jsonOutput bool
 
-// scanCmd represents the scan command
 var scanCmd = &cobra.Command{
 	Use:   "scan",
-	Short: "Scan the network for nethawk servers",
-	Run: func(cmd *cobra.Command, args []string) {
+	Short: "Discover Nethawk servers on your local network",
+	Long: `Scan the local network for reachable Nethawk servers.
+
+Nethawk discovers advertised services using multicast DNS (mDNS) and
+queries discovered instances to retrieve their server status, IP addresses,
+and device configuration.
+
+By default, results are printed in a human-readable format. Use --json
+to produce indented JSON suitable for scripts, other programs, and
+automated processing.
+
+Discovery depends on network connectivity and multicast DNS availability.
+Firewalls, wireless client isolation, VLAN boundaries, and other network
+restrictions may prevent some devices from being discovered or reached.
+
+This command discovers Nethawk instances; it does not scan every host
+or port on the network.`,
+	Example: `  # Discover servers and display readable results
+  nethawk scan
+
+  # Output results as JSON
+  nethawk scan --json
+
+  # Use the JSON output in another command
+  nethawk scan --json > servers.json`,
+	Args:         cobra.NoArgs,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
 		resp, err := scanner.Scan()
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("scan network: %w", err)
 		}
 
-		if json {
-			v, err := jsonlib.MarshalIndent(resp, "", "\t")
-			if err != nil {
-				panic(err)
+		if jsonOutput {
+			encoder := json.NewEncoder(os.Stdout)
+			encoder.SetIndent("", "\t")
+			if err := encoder.Encode(resp); err != nil {
+				return fmt.Errorf("encode scan results as JSON: %w", err)
 			}
-			fmt.Println(string(v))
-			return
+			return nil
 		}
-		for _, server := range resp {
-			fmt.Printf("Server: %s\nStatus: %s\nIps: %s\nDevice:\n\tName: %s\n\tUname: %s\n\tAlias: %s\n", server.Name, server.Status, strings.Join(server.Ips, " "), server.Config.Name, server.Config.Uname, server.Config.Alias)
+
+		if len(resp) == 0 {
+			fmt.Println("No Nethawk servers found.")
+			return nil
 		}
-		// devices, err := mdns.Scan()
-		// if err != nil {
-		// 	panic(err)
-		// }
-		// for _, device := range devices {
-		// 	var ips []string
-		// 	for _, ip := range device.Ipv4 {
-		// 		ips = append(ips, ip.String())
-		// 	}
-		//
-		// 	fmt.Printf("NAME: %s\nINSTANCE: %s\nIPV4: %s\n", device.Hostname, device.Instance, strings.Join(ips, " "))
-		// }
+
+		for i, server := range resp {
+			if i > 0 {
+				fmt.Println()
+			}
+
+			fmt.Printf(
+				"Server: %s\nStatus: %s\nIPs: %s\nDevice:\n\tName: %s\n\tUname: %s\n\tAlias: %s\n",
+				server.Name,
+				server.Status,
+				strings.Join(server.Ips, " "),
+				server.Config.Name,
+				server.Config.Uname,
+				server.Config.Alias,
+			)
+		}
+
+		return nil
 	},
 }
 
 func init() {
-	scanCmd.Flags().BoolVarP(&json, "json", "j", false, "Output results in json")
+	scanCmd.Flags().BoolVarP(
+		&jsonOutput,
+		"json",
+		"j",
+		false,
+		"Output scan results as indented JSON",
+	)
 
 	rootCmd.AddCommand(scanCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// scanCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// scanCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
