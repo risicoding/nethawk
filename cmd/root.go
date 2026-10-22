@@ -11,8 +11,9 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "nethawk",
-	Short: "Discover nethawk instances on your lan",
+	Use:     "nethawk",
+	Short:   "Discover nethawk instances on your lan",
+	Version: "v0.1.0",
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
